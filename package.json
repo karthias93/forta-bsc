@@ -4,7 +4,7 @@
   "description": "Forta Agent Javascript example showing how to query other blockchains",
   "scripts": {
     "start": "npm run start:dev",
-    "start:dev": "nodemon --watch src --watch forta.config.json -e js,json --exec \"forta-agent run\"",
+    "start:dev": "forta-agent run",
     "start:prod": "forta-agent run --prod",
     "tx": "forta-agent run --tx",
     "block": "forta-agent run --block",
