@@ -24,7 +24,7 @@ async function scanRinkebyBlocks() {
   while (currentRinkebyBlockNumber <= latestRinkebyBlockNumber) {
     // fetch rinkeby block
     const rinkebyBlock = await rinkebyProvider.getBlock(
-      31473374
+      currentRinkebyBlockNumber
     );
     // fetch receipt for each transaction in block
     for (const tx of rinkebyBlock.transactions) {
@@ -65,73 +65,73 @@ async function scanRinkebyBlocks() {
           let message = '';
           let type = 'Wallet';
           if (parsedLog.name === 'Transfer') {
-            // const { to, from, amount } = parsedLog.args;
-            // const address = transferEvent.address;
-            // if (updatedAddress.includes(address)) continue;
-            // updatedAddress.push(address)
-            // let url = `https://api.etherscan.io/api?module=account&action=txlist&address=${from}&startblock=0&endblock=99999999&page=1&offset=1&sort=asc&apikey=IFHFS4XF4RGGW4F99FHIQG2AJF7AV6IW2D`;
-            // if (protocol !== 1) url = `https://api.bscscan.com/api?module=account&action=txlist&address=${from}&startblock=0&endblock=99999999&page=1&offset=1&sort=asc&apikey=VRWQ7X5FHH3X38IDB5VJB2Z69A46849CYH`;
-            // const firstRecord = await axios.get(url)
-            // const firstIn = firstRecord?.data?.result && firstRecord.data.result.length ? firstRecord.data.result[0].timeStamp : '0';
-            // if (firstIn) {
-            //   const datediff = (first, second)  => {   
-            //     return Math.round((first - second) / (60 * 60 * 24));
-            //   }
-            //   const diff = datediff(Math.round(Date.now()/1000), firstIn);
-            //   if (diff <= 1) {
-            //     message = `New Wallet interacted between age 1 hr-24 hours. Check Address`;
-            //   } else if (diff <=7) {
-            //     message = `New Wallet interacted between age 1 day-7 days. Check Address`;
-            //   } else if (diff <=30) {
-            //     message = `New Wallet interacted between age 7 days - 30 days. Check Address`;
-            //   }
-            // }
-            // if (!message) {
-            //   const security = await axios.get(`https://api.gopluslabs.io/api/v1/address_security/${from}?chain_id=${protocol}`)
-            //   if (security?.data?.result?.sanctioned && security.data.result.sanctioned !== '0') {
-            //     message = `Sanctioned Wallet interacted. Check Address`;
-            //   }
-            //   if (security?.data?.result?.money_laundering && security.data.result.money_laundering !== '0') {
-            //     message = `AML Wallet interacted. Check Address`;
-            //   }
-            // }
-            // if (!message) {
-            //   let tokensupplyUrl = `https://api.etherscan.io/api?module=stats&action=tokensupply&contractaddress=${address}&apikey=IFHFS4XF4RGGW4F99FHIQG2AJF7AV6IW2D`;
-            //   if (protocol !== 1) tokensupplyUrl = `https://api.bscscan.com/api?module=stats&action=tokensupply&contractaddress=${address}&apikey=VRWQ7X5FHH3X38IDB5VJB2Z69A46849CYH`;
-            //   const tokenSupply = await axios.get(tokensupplyUrl)
-            //   if (tokenSupply?.data?.result) {
-            //     console.log(tokenSupply?.data?.result, '-----address----', tokensupplyUrl)
-            //     const percent = amount.div(ethers.BigNumber.from(tokenSupply?.data?.result)).mul(100)
-            //     if (parseFloat(Web3.utils.fromWei(percent, "ether" )) > 1) {
-            //       message = `More than 1% of total supply`
-            //     }
-            //   }
-            // }
-            // if (message) {
-            //   const responseData = {
-            //     name: "New Wallet interacted",
-            //     description: message,
-            //     alertId: "FORTA-1",
-            //     severity: FindingSeverity.Low,
-            //     type: FindingType.Info,
-            //     metadata: {
-            //       to,
-            //       from,
-            //       address,
-            //       type,
-            //       blockNumber: blockNumber.toString(),
-            //       timeStamp: timeStamp.toString(),
-            //       hash
-            //     },
-            //   };
-            //   try {
-            //     // console.log(Finding.fromObject(responseData), '-----response data-----')
-            //     // await axios.post(`http://dashboard.dehack.ai:12000/api/webhook`, Finding.fromObject(responseData));
-            //     // await axios.post(`http://localhost:12000/api/webhook`, Finding.fromObject(responseData));
-            //   } catch(e) {
-            //     console.log(e, '----err-----')
-            //   }
-            // }
+            const { to, from, amount } = parsedLog.args;
+            const address = transferEvent.address;
+            if (updatedAddress.includes(address)) continue;
+            updatedAddress.push(address)
+            let url = `https://api.etherscan.io/api?module=account&action=txlist&address=${from}&startblock=0&endblock=99999999&page=1&offset=1&sort=asc&apikey=IFHFS4XF4RGGW4F99FHIQG2AJF7AV6IW2D`;
+            if (protocol !== 1) url = `https://api.bscscan.com/api?module=account&action=txlist&address=${from}&startblock=0&endblock=99999999&page=1&offset=1&sort=asc&apikey=VRWQ7X5FHH3X38IDB5VJB2Z69A46849CYH`;
+            const firstRecord = await axios.get(url)
+            const firstIn = firstRecord?.data?.result && firstRecord.data.result.length ? firstRecord.data.result[0].timeStamp : '0';
+            if (firstIn) {
+              const datediff = (first, second)  => {   
+                return Math.round((first - second) / (60 * 60 * 24));
+              }
+              const diff = datediff(Math.round(Date.now()/1000), firstIn);
+              if (diff <= 1) {
+                message = `New Wallet interacted between age 1 hr-24 hours. Check Address`;
+              } else if (diff <=7) {
+                message = `New Wallet interacted between age 1 day-7 days. Check Address`;
+              } else if (diff <=30) {
+                message = `New Wallet interacted between age 7 days - 30 days. Check Address`;
+              }
+            }
+            if (!message) {
+              const security = await axios.get(`https://api.gopluslabs.io/api/v1/address_security/${from}?chain_id=${protocol}`)
+              if (security?.data?.result?.sanctioned && security.data.result.sanctioned !== '0') {
+                message = `Sanctioned Wallet interacted. Check Address`;
+              }
+              if (security?.data?.result?.money_laundering && security.data.result.money_laundering !== '0') {
+                message = `AML Wallet interacted. Check Address`;
+              }
+            }
+            if (!message) {
+              let tokensupplyUrl = `https://api.etherscan.io/api?module=stats&action=tokensupply&contractaddress=${address}&apikey=IFHFS4XF4RGGW4F99FHIQG2AJF7AV6IW2D`;
+              if (protocol !== 1) tokensupplyUrl = `https://api.bscscan.com/api?module=stats&action=tokensupply&contractaddress=${address}&apikey=VRWQ7X5FHH3X38IDB5VJB2Z69A46849CYH`;
+              const tokenSupply = await axios.get(tokensupplyUrl)
+              if (tokenSupply?.data?.result) {
+                console.log(tokenSupply?.data?.result, '-----address----', tokensupplyUrl)
+                const percent = amount.div(ethers.BigNumber.from(tokenSupply?.data?.result)).mul(100)
+                if (parseFloat(Web3.utils.fromWei(percent, "ether" )) > 1) {
+                  message = `More than 1% of total supply`
+                }
+              }
+            }
+            if (message) {
+              const responseData = {
+                name: "New Wallet interacted",
+                description: message,
+                alertId: "FORTA-1",
+                severity: FindingSeverity.Low,
+                type: FindingType.Info,
+                metadata: {
+                  to,
+                  from,
+                  address,
+                  type,
+                  blockNumber: blockNumber.toString(),
+                  timeStamp: timeStamp.toString(),
+                  hash
+                },
+              };
+              try {
+                // console.log(Finding.fromObject(responseData), '-----response data-----')
+                await axios.post(`http://dashboard.dehack.ai:12000/api/webhook`, Finding.fromObject(responseData));
+                // await axios.post(`http://localhost:12000/api/webhook`, Finding.fromObject(responseData));
+              } catch(e) {
+                console.log(e, '----err-----')
+              }
+            }
           } else {
             const responseData = {
               name: "Function alert",
@@ -146,7 +146,7 @@ async function scanRinkebyBlocks() {
             }
             console.log(responseData, '----res-----')
             try {
-              // await axios.post(`http://dashboard.dehack.ai:12000/api/webhook/functions`, Finding.fromObject(responseData));
+              await axios.post(`http://dashboard.dehack.ai:12000/api/webhook/functions`, Finding.fromObject(responseData));
             } catch (e) {
               console.log(e)
             }
