@@ -49,7 +49,7 @@ async function scanRinkebyBlocks() {
       //     })
       //   );
       // }
-      if (!receipt.logs.length) break;
+      if (!receipt.logs.length) return;
       const protocol = 56;
       const blockNumber = receipt.blockNumber;
       const timeStamp = rinkebyBlock.timestamp;
