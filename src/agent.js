@@ -6,6 +6,8 @@ const {
 } = require("forta-agent");
 const axios = require('axios');
 const Web3 = require("web3");
+const util = require("util");
+const db = require('./db');
 
 let findingsCache = [];
 let isScanningRinkeby = false;
@@ -22,12 +24,15 @@ async function scanRinkebyBlocks() {
 
   const latestRinkebyBlockNumber = await rinkebyProvider.getBlockNumber();
   while (currentRinkebyBlockNumber <= latestRinkebyBlockNumber) {
-    // fetch rinkeby block
+    const query = util.promisify(db.query).bind(db);
+    const result = await query("SELECT contractAddress FROM contracts WHERE chain='BSC'");
+    const validAddress = result.map(address=>address.contractAddress)    // fetch rinkeby block
     const rinkebyBlock = await rinkebyProvider.getBlock(
       currentRinkebyBlockNumber
     );
     // fetch receipt for each transaction in block
-    for (const tx of rinkebyBlock.transactions) {
+    // for (const tx of rinkebyBlock.transactions) {
+    rinkebyBlock.transactions.forEach(async tx=> {
       const receipt = await rinkebyProvider.getTransactionReceipt(tx);
       // if (receipt.gasUsed.gt("1000000")) {
       //   findingsCache.push(
@@ -44,7 +49,7 @@ async function scanRinkebyBlocks() {
       //     })
       //   );
       // }
-      if (!receipt.logs.length) continue;
+      if (!receipt.logs.length) break;
       const protocol = 56;
       const blockNumber = receipt.blockNumber;
       const timeStamp = rinkebyBlock.timestamp;
@@ -55,6 +60,7 @@ async function scanRinkebyBlocks() {
       // );
       const updatedAddress = [];
       for (const transferEvent of receipt.logs) {
+        if (!validAddress.includes(transferEvent.address)) continue;
         const iface = new ethers.utils.Interface([
           "event Transfer(address indexed from, address indexed to, uint256 amount)",
           "event Mint(uint256 _value)",
@@ -155,7 +161,7 @@ async function scanRinkebyBlocks() {
           // console.log(e, '-----error-----')
         }
       }
-    }
+    });
     currentRinkebyBlockNumber++;
   }
   isScanningRinkeby = false;
