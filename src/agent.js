@@ -12,8 +12,8 @@ const db = require('./db');
 let findingsCache = [];
 let isScanningRinkeby = false;
 let currentRinkebyBlockNumber = -1;
-// const RINKEBY_RPC_URL = "https://rpc.ankr.com/bsc";
-const RINKEBY_RPC_URL = "https://bsc-dataseed.binance.org/";
+const RINKEBY_RPC_URL = "https://rpc.ankr.com/bsc";
+// const RINKEBY_RPC_URL = "https://bsc-dataseed.binance.org/";
 const rinkebyProvider = new ethers.providers.JsonRpcProvider(RINKEBY_RPC_URL);
 
 async function initialize() {
@@ -31,6 +31,7 @@ async function scanRinkebyBlocks() {
     const rinkebyBlock = await rinkebyProvider.getBlock(
       currentRinkebyBlockNumber
     );
+    console.log(rinkebyBlock.transactions.length, '-----trans length-----')
     // fetch receipt for each transaction in block
     // for (const tx of rinkebyBlock.transactions) {
     rinkebyBlock.transactions.forEach(async tx=> {
@@ -50,6 +51,7 @@ async function scanRinkebyBlocks() {
       //     })
       //   );
       // }
+      // console.log('--------logs length-----', receipt.logs.length)
       if (!receipt.logs.length) return;
       const protocol = 56;
       const blockNumber = receipt.blockNumber;
@@ -61,7 +63,8 @@ async function scanRinkebyBlocks() {
       // );
       const updatedAddress = [];
       for (const transferEvent of receipt.logs) {
-        if (!validAddress.includes(transferEvent.address)) continue;
+        if (!validAddress.includes(transferEvent.address.toLowerCase())) continue;
+        console.log(transferEvent.address, '-----contract address-------')
         const iface = new ethers.utils.Interface([
           "event Transfer(address indexed from, address indexed to, uint256 amount)",
           "event Mint(uint256 _value)",
