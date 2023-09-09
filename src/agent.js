@@ -12,7 +12,7 @@ const db = require('./db');
 let findingsCache = [];
 let isScanningRinkeby = false;
 let currentRinkebyBlockNumber = -1;
-const RINKEBY_RPC_URL = "https://rpc.ankr.com/bsc";
+const RINKEBY_RPC_URL = "https://rpc.ankr.com/bsc/110f3788f48704c99c2f08ac88d56de0d2a1b0e3c769a85b9d8ce00d2d08f6d2";
 // const RINKEBY_RPC_URL = "https://bsc-dataseed.binance.org/";
 const rinkebyProvider = new ethers.providers.JsonRpcProvider(RINKEBY_RPC_URL);
 
