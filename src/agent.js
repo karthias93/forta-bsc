@@ -12,7 +12,8 @@ const db = require('./db');
 let findingsCache = [];
 let isScanningRinkeby = false;
 let currentRinkebyBlockNumber = -1;
-const RINKEBY_RPC_URL = "https://rpc.ankr.com/bsc/110f3788f48704c99c2f08ac88d56de0d2a1b0e3c769a85b9d8ce00d2d08f6d2";
+const RINKEBY_RPC_URL = "https://rpc.ankr.com/bsc/8408571cc4aeccf73f3444fec1a8c1bbf67db1f53548f030a7a7d475639488d4";
+// const RINKEBY_RPC_URL = "https://cloudflare-eth.com/";
 // const RINKEBY_RPC_URL = "https://bsc-dataseed.binance.org/";
 const rinkebyProvider = new ethers.providers.JsonRpcProvider(RINKEBY_RPC_URL);
 
@@ -30,12 +31,16 @@ async function scanRinkebyBlocks() {
     const validAddress = result.map(address=>address.contractAddress)    // fetch rinkeby block
     const rinkebyBlock = await rinkebyProvider.getBlock(
       currentRinkebyBlockNumber
+      // 31627320
     );
+    const transactionWallets = [];
     console.log(rinkebyBlock.transactions.length, '-----trans length-----')
     // fetch receipt for each transaction in block
     // for (const tx of rinkebyBlock.transactions) {
     rinkebyBlock.transactions.forEach(async tx=> {
       const receipt = await rinkebyProvider.getTransactionReceipt(tx);
+      // console.log('--------logs length-----', receipt.logs.length)
+      if (!receipt.logs.length) return;
       // if (receipt.gasUsed.gt("1000000")) {
       //   findingsCache.push(
       //     Finding.fromObject({
@@ -51,8 +56,6 @@ async function scanRinkebyBlocks() {
       //     })
       //   );
       // }
-      // console.log('--------logs length-----', receipt.logs.length)
-      if (!receipt.logs.length) return;
       const protocol = 56;
       const blockNumber = receipt.blockNumber;
       const timeStamp = rinkebyBlock.timestamp;
@@ -64,36 +67,44 @@ async function scanRinkebyBlocks() {
       const updatedAddress = [];
       for (const transferEvent of receipt.logs) {
         if (!validAddress.includes(transferEvent.address.toLowerCase())) continue;
-        console.log(transferEvent.address, '-----contract address-------')
         const iface = new ethers.utils.Interface([
           "event Transfer(address indexed from, address indexed to, uint256 amount)",
           "event Mint(uint256 _value)",
           "event Burn(uint256 _value)"
         ]);
+        console.log(transferEvent.address, '-----contract address-------')
         try {
           const parsedLog = iface.parseLog(transferEvent);
           let message = '';
           let type = 'Wallet';
+          if (receipt.cumulativeGasUsed.toString() > 4454516) {
+            message = `Suspicious function with anomalous gas detected: ${receipt.cumulativeGasUsed.toString()}`
+          }
           if (parsedLog.name === 'Transfer') {
             const { to, from, amount } = parsedLog.args;
-            const address = transferEvent.address;
-            if (updatedAddress.includes(address)) continue;
-            updatedAddress.push(address)
-            let url = `https://api.etherscan.io/api?module=account&action=txlist&address=${from}&startblock=0&endblock=99999999&page=1&offset=1&sort=asc&apikey=IFHFS4XF4RGGW4F99FHIQG2AJF7AV6IW2D`;
-            if (protocol !== 1) url = `https://api.bscscan.com/api?module=account&action=txlist&address=${from}&startblock=0&endblock=99999999&page=1&offset=1&sort=asc&apikey=VRWQ7X5FHH3X38IDB5VJB2Z69A46849CYH`;
-            const firstRecord = await axios.get(url)
-            const firstIn = firstRecord?.data?.result && firstRecord.data.result.length ? firstRecord.data.result[0].timeStamp : '0';
-            if (firstIn) {
-              const datediff = (first, second)  => {   
-                return Math.round((first - second) / (60 * 60 * 24));
-              }
-              const diff = datediff(Math.round(Date.now()/1000), firstIn);
-              if (diff <= 1) {
-                message = `New Wallet interacted between age 1 hr-24 hours. Check Address`;
-              } else if (diff <=7) {
-                message = `New Wallet interacted between age 1 day-7 days. Check Address`;
-              } else if (diff <=30) {
-                message = `New Wallet interacted between age 7 days - 30 days. Check Address`;
+            if (!message && transactionWallets.includes(from)) message = 'Multiple Transactions in same block';
+            if (!message) {
+              type = 'transactions'
+              transactionWallets.push(from);
+              const address = transferEvent.address;
+              if (updatedAddress.includes(address)) continue;
+              updatedAddress.push(address)
+              let url = `https://api.etherscan.io/api?module=account&action=txlist&address=${from}&startblock=0&endblock=99999999&page=1&offset=1&sort=asc&apikey=IFHFS4XF4RGGW4F99FHIQG2AJF7AV6IW2D`;
+              if (protocol !== 1) url = `https://api.bscscan.com/api?module=account&action=txlist&address=${from}&startblock=0&endblock=99999999&page=1&offset=1&sort=asc&apikey=VRWQ7X5FHH3X38IDB5VJB2Z69A46849CYH`;
+              const firstRecord = await axios.get(url)
+              const firstIn = firstRecord?.data?.result && firstRecord.data.result.length ? firstRecord.data.result[0].timeStamp : '0';
+              if (firstIn) {
+                const datediff = (first, second)  => {   
+                  return Math.round((first - second) / (60 * 60 * 24));
+                }
+                const diff = datediff(Math.round(Date.now()/1000), firstIn);
+                if (diff <= 1) {
+                  message = `New Wallet interacted between age 1 hr-24 hours. Check Address`;
+                } else if (diff <=7) {
+                  message = `New Wallet interacted between age 1 day-7 days. Check Address`;
+                } else if (diff <=30) {
+                  message = `New Wallet interacted between age 7 days - 30 days. Check Address`;
+                }
               }
             }
             if (!message) {
@@ -106,13 +117,13 @@ async function scanRinkebyBlocks() {
               }
             }
             if (!message) {
+              type = 'transactions'
               let tokensupplyUrl = `https://api.etherscan.io/api?module=stats&action=tokensupply&contractaddress=${address}&apikey=IFHFS4XF4RGGW4F99FHIQG2AJF7AV6IW2D`;
               if (protocol !== 1) tokensupplyUrl = `https://api.bscscan.com/api?module=stats&action=tokensupply&contractaddress=${address}&apikey=VRWQ7X5FHH3X38IDB5VJB2Z69A46849CYH`;
               const tokenSupply = await axios.get(tokensupplyUrl)
               if (tokenSupply?.data?.result) {
-                console.log(tokenSupply?.data?.result, '-----address----', tokensupplyUrl)
-                const percent = amount.div(ethers.BigNumber.from(tokenSupply?.data?.result)).mul(100)
-                if (parseFloat(Web3.utils.fromWei(percent, "ether" )) > 1) {
+                const percent = amount.toString()/ethers.BigNumber.from(tokenSupply?.data?.result).toString()*100
+                if (parseFloat(percent) > 1) {
                   message = `More than 1% of total supply`
                 }
               }
@@ -135,8 +146,12 @@ async function scanRinkebyBlocks() {
                 },
               };
               try {
+                if (type === 'transactions') {
+                  await axios.post(`http://dashboard.dehack.ai:12000/api/webhook/transactions`, Finding.fromObject(responseData));
+                } else {
+                  await axios.post(`http://dashboard.dehack.ai:12000/api/webhook`, Finding.fromObject(responseData));
+                }
                 // console.log(Finding.fromObject(responseData), '-----response data-----')
-                await axios.post(`http://dashboard.dehack.ai:12000/api/webhook`, Finding.fromObject(responseData));
                 // await axios.post(`http://localhost:12000/api/webhook`, Finding.fromObject(responseData));
               } catch(e) {
                 console.log(e, '----err-----')
@@ -149,12 +164,14 @@ async function scanRinkebyBlocks() {
               alertId: "GAS-ANOMALOUS-LARGE-CONSUMPTION",
               severity: FindingSeverity.High,
               type: FindingType.Info,
+              protocol: 'bsc',
               metadata: {
-                contractAddress: address,
-                tx_hash: hash
+                contractAddress: transferEvent.address.toLowerCase(),
+                tx_hash: hash,
+                chain: 56
               },
             }
-            console.log(responseData, '----res-----')
+            console.log(Finding.fromObject(responseData), '----res-----')
             try {
               await axios.post(`http://dashboard.dehack.ai:12000/api/webhook/functions`, Finding.fromObject(responseData));
             } catch (e) {
@@ -162,7 +179,7 @@ async function scanRinkebyBlocks() {
             }
           }
         } catch (e) {
-          // console.log(e, '-----error-----')
+          console.log(e, '-----error-----')
         }
       }
     });
