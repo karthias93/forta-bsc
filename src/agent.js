@@ -12,7 +12,7 @@ const db = require('./db');
 let findingsCache = [];
 let isScanningRinkeby = false;
 let currentRinkebyBlockNumber = -1;
-const RINKEBY_RPC_URL = "https://rpc.ankr.com/bsc/8408571cc4aeccf73f3444fec1a8c1bbf67db1f53548f030a7a7d475639488d4";
+const RINKEBY_RPC_URL = "https://bsc-dataseed1.binance.org/";
 // const RINKEBY_RPC_URL = "https://cloudflare-eth.com/";
 // const RINKEBY_RPC_URL = "https://bsc-dataseed.binance.org/";
 const rinkebyProvider = new ethers.providers.JsonRpcProvider(RINKEBY_RPC_URL);
@@ -77,6 +77,7 @@ async function scanRinkebyBlocks() {
           const parsedLog = iface.parseLog(transferEvent);
           let message = '';
           let type = 'Wallet';
+          const address = transferEvent.address;
           if (receipt.cumulativeGasUsed.toString() > 4454516) {
             message = `Suspicious function with anomalous gas detected: ${receipt.cumulativeGasUsed.toString()}`
           }
@@ -86,7 +87,6 @@ async function scanRinkebyBlocks() {
             if (!message) {
               type = 'transactions'
               transactionWallets.push(from);
-              const address = transferEvent.address;
               if (updatedAddress.includes(address)) continue;
               updatedAddress.push(address)
               let url = `https://api.etherscan.io/api?module=account&action=txlist&address=${from}&startblock=0&endblock=99999999&page=1&offset=1&sort=asc&apikey=IFHFS4XF4RGGW4F99FHIQG2AJF7AV6IW2D`;
@@ -142,7 +142,8 @@ async function scanRinkebyBlocks() {
                   type,
                   blockNumber: blockNumber.toString(),
                   timeStamp: timeStamp.toString(),
-                  hash
+                  tx_hash: hash,
+                  chain: 56
                 },
               };
               try {
