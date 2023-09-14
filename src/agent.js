@@ -13,7 +13,7 @@ let findingsCache = [];
 let isScanningRinkeby = false;
 let currentRinkebyBlockNumber = -1;
 const RINKEBY_RPC_URL = "https://bsc-dataseed1.binance.org/";
-// const RINKEBY_RPC_URL = "https://cloudflare-eth.com/";
+// const RINKEBY_RPC_URL = "https://data-seed-prebsc-1-s1.binance.org:8545";
 // const RINKEBY_RPC_URL = "https://bsc-dataseed.binance.org/";
 const rinkebyProvider = new ethers.providers.JsonRpcProvider(RINKEBY_RPC_URL);
 
@@ -28,10 +28,11 @@ async function scanRinkebyBlocks() {
   while (currentRinkebyBlockNumber <= latestRinkebyBlockNumber) {
     const query = util.promisify(db.query).bind(db);
     const result = await query("SELECT contractAddress FROM contracts WHERE chain='BSC'");
-    const validAddress = result.map(address=>address.contractAddress)    // fetch rinkeby block
+    const validAddress = result.map(address=>address.contractAddress)   // fetch rinkeby block
+    // validAddress.push(`0x20817a404d6deccaa497f4e4fd5e4e0a1011470f`)
     const rinkebyBlock = await rinkebyProvider.getBlock(
       currentRinkebyBlockNumber
-      // 31627320
+      // 33244046
     );
     const transactionWallets = [];
     console.log(rinkebyBlock.transactions.length, '-----trans length-----')
@@ -39,7 +40,7 @@ async function scanRinkebyBlocks() {
     // for (const tx of rinkebyBlock.transactions) {
     rinkebyBlock.transactions.forEach(async tx=> {
       const receipt = await rinkebyProvider.getTransactionReceipt(tx);
-      // console.log('--------logs length-----', receipt.logs.length)
+      console.log('--------logs length-----', receipt)
       if (!receipt.logs.length) return;
       // if (receipt.gasUsed.gt("1000000")) {
       //   findingsCache.push(
@@ -67,10 +68,12 @@ async function scanRinkebyBlocks() {
       const updatedAddress = [];
       for (const transferEvent of receipt.logs) {
         if (!validAddress.includes(transferEvent.address.toLowerCase())) continue;
+        console.log(validAddress, '----logs length----', transferEvent.address.toLowerCase())
         const iface = new ethers.utils.Interface([
           "event Transfer(address indexed from, address indexed to, uint256 amount)",
           "event Mint(uint256 _value)",
-          "event Burn(uint256 _value)"
+          "event Burn(uint256 _value)",
+          "function changeOwner(address payable _newOwner)"
         ]);
         console.log(transferEvent.address, '-----contract address-------')
         try {
@@ -79,7 +82,8 @@ async function scanRinkebyBlocks() {
           let type = 'Wallet';
           const address = transferEvent.address;
           if (receipt.cumulativeGasUsed.toString() > 17818064) {
-            message = `High Gas Fee Transaction Found: ${receipt.cumulativeGasUsed.toString()}`
+            type = 'transactions'
+            message = `New Wallet Paying ${receipt.cumulativeGasUsed.toString()} more Gas fee than usual. Check Address`
           }
           if (parsedLog.name === 'Transfer') {
             const { to, from, amount } = parsedLog.args;
@@ -161,7 +165,7 @@ async function scanRinkebyBlocks() {
           } else {
             const responseData = {
               name: "Function alert",
-              description: `Suspected function ${parsedLog.name}`,
+              description: `${parsedLog.name} ${parsedLog.args[0].toString()} Amount of Tokens. Check Txn`,
               alertId: "GAS-ANOMALOUS-LARGE-CONSUMPTION",
               severity: FindingSeverity.High,
               type: FindingType.Info,
