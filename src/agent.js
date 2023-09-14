@@ -78,8 +78,8 @@ async function scanRinkebyBlocks() {
           let message = '';
           let type = 'Wallet';
           const address = transferEvent.address;
-          if (receipt.cumulativeGasUsed.toString() > 4454516) {
-            message = `Suspicious function with anomalous gas detected: ${receipt.cumulativeGasUsed.toString()}`
+          if (receipt.cumulativeGasUsed.toString() > 17818064) {
+            message = `High Gas Fee Transaction Found: ${receipt.cumulativeGasUsed.toString()}`
           }
           if (parsedLog.name === 'Transfer') {
             const { to, from, amount } = parsedLog.args;
